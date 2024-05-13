@@ -3,11 +3,12 @@
 const int MAX_POINT_LIGHTS = 2;
 const int MAX_SPOT_LIGHTS = 2;
 
-in vec4 LightSpacePos; // required only for shadow mapping
 in vec2 TexCoord0;
 in vec3 Normal0;
 in vec3 LocalPos0;
 in vec3 WorldPos0;
+in vec4 LightSpacePos0; // required only for shadow mapping
+noperspective in vec3 EdgeDistance0;
 
 out vec4 FragColor;
 
@@ -76,10 +77,10 @@ layout(binding = 0) uniform sampler2D gSampler;
 layout(binding = 1) uniform sampler2D gSamplerSpecularExponent;
 layout(binding = 2) uniform sampler2D gShadowMap;        // required only for shadow mapping (spot/directional light)
 layout(binding = 3) uniform samplerCube gShadowCubeMap;  // required only for shadow mapping (point light)
+layout(binding = 4) uniform sampler3D gShadowMapOffsetTexture;
 uniform int gShadowMapWidth = 0;
 uniform int gShadowMapHeight = 0;
 uniform int gShadowMapFilterSize = 0;
-uniform sampler3D gShadowMapOffsetTexture;
 uniform float gShadowMapOffsetTextureSize;
 uniform float gShadowMapOffsetFilterSize;
 uniform float gShadowMapRandomRadius = 0.0;
@@ -93,6 +94,8 @@ uniform bool gCellShadingEnabled = false;
 uniform bool gEnableSpecularExponent = false;
 uniform bool gIsPBR = false;
 uniform PBRMaterial gPBRmaterial;
+uniform float gWireframeWidth = 0.75;
+uniform vec4 gWireframeColor;
 
 // Fog
 uniform float gExpFogDensity = 1.0;
@@ -135,7 +138,7 @@ float CalcShadowFactorPointLight(vec3 LightToPixel)
 
 vec3 CalcShadowCoords()
 {
-    vec3 ProjCoords = LightSpacePos.xyz / LightSpacePos.w;
+    vec3 ProjCoords = LightSpacePos0.xyz / LightSpacePos0.w;
     vec3 ShadowCoords = ProjCoords * 0.5 + vec3(0.5);
     return ShadowCoords;
 }
@@ -164,7 +167,7 @@ float CalcShadowFactorPCF(vec3 LightDirection, vec3 Normal)
         return 1.0;
     }
 
-    vec3 ProjCoords = LightSpacePos.xyz / LightSpacePos.w;
+    vec3 ProjCoords = LightSpacePos0.xyz / LightSpacePos0.w;
     vec3 ShadowCoords = ProjCoords * 0.5 + vec3(0.5);
 
     float DiffuseFactor = dot(Normal, -LightDirection);
@@ -313,7 +316,7 @@ vec4 CalcLightInternal(BaseLight Light, vec3 LightDirection, vec3 Normal,
             float SpecularExponent = 128.0;
 
             if (gEnableSpecularExponent) {
-                SpecularExponent = texture2D(gSamplerSpecularExponent, TexCoord0).r * 255.0;
+                SpecularExponent = texture(gSamplerSpecularExponent, TexCoord0).r * 255.0;
             }
 
             SpecularFactor = pow(SpecularFactor, SpecularExponent);
@@ -507,7 +510,7 @@ vec4 CalcPhongLighting()
         TotalLight += CalcSpotLight(gSpotLights[i], Normal);
     }
 
-    vec4 TempColor = texture2D(gSampler, TexCoord0.xy) * TotalLight;
+    vec4 TempColor = texture(gSampler, TexCoord0.xy) * TotalLight;
 
     if (gFogColor != vec3(0)) {
         float FogFactor = CalcFogFactor();
@@ -644,5 +647,21 @@ void main()
         FragColor = CalcTotalPBRLighting();
     } else {
         FragColor = CalcPhongLighting();
+    }
+
+    if (EdgeDistance0.x >= 0) {
+	float d = min( EdgeDistance0.x, min(EdgeDistance0.y, EdgeDistance0.z ));
+
+        float mixVal = 0.0;
+        if (d < gWireframeWidth - 1) {
+            mixVal = 1.0;
+        } else if (d > gWireframeWidth + 1) {
+            mixVal = 0.0;
+        } else {
+            float x = d - (gWireframeWidth - 1);
+            mixVal = exp2(-2.0 * x * x);
+        }        
+
+        FragColor = mix(FragColor, gWireframeColor, mixVal);
     }
 }

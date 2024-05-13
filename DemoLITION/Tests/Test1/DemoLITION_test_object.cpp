@@ -34,27 +34,21 @@ class ObjectTest : public GameCallbacks
 public:
 
     virtual ~ObjectTest()
-    {
-        SAFE_DELETE(m_pMesh);
+    {        
     }
 
 
     void Init()
     {
-        m_pRenderingSubsystem = BaseRenderingSubsystem::CreateRenderingSubsystem(RENDERING_SUBSYSTEM_GL, this);
+        bool LoadBasicShapes = true;
+        m_pRenderingSystem = RenderingSystem::CreateRenderingSystem(RENDERING_SYSTEM_GL, this, LoadBasicShapes);
+        m_pRenderingSystem->CreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT);
 
-        m_pRenderingSubsystem->CreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT);
-
-        m_pScene = m_pRenderingSubsystem->CreateScene();
-        DirectionalLight DirLight;
-        DirLight.WorldDirection = Vector3f(0.0f, 0.0f, 1.0f);
-        DirLight.DiffuseIntensity = 1.0f;
-
-        m_pScene->m_dirLights.push_back(DirLight);
+        m_pScene = m_pRenderingSystem->CreateEmptyScene();
 
         m_pScene->SetClearColor(Vector4f(0.0f, 1.0f, 0.0f, 0.0f));
 
-        m_pRenderingSubsystem->SetScene(m_pScene);
+        m_pRenderingSystem->SetScene(m_pScene);
 
         InitMesh();
     }
@@ -62,29 +56,51 @@ public:
 
     void Run()
     {
-        m_pRenderingSubsystem->Execute();
+        m_pRenderingSystem->Execute();
     }
 
     void OnFrame()
     {
         m_counter += 0.1f;
 
-        m_pMesh->GetWorldTransform().SetRotation(0.0f, m_counter, 0.0f);
+        m_pSceneObject1->SetRotation(0.0f, m_counter, 0.0f);
+        m_pSceneObject2->SetRotation(0.0f, m_counter, 0.0f);
+        m_pSceneObject3->SetRotation(0.0f, m_counter, 0.0f);
+        m_pSceneObject4->SetRotation(0.0f, m_counter, 0.0f);
     }
 
 private:
 
     void InitMesh()
     {
-        m_pMesh = m_pRenderingSubsystem->LoadModel("../Content/sphere.obj");
-        m_pMesh->GetWorldTransform().SetPosition(0.0f, 0.0f, 10.0f);
+        m_pSceneObject1 = m_pScene->CreateSceneObject("cube");
+        m_pScene->AddToRenderList(m_pSceneObject1);
+        m_pSceneObject1->SetPosition(0.0f, 0.0f, 10.0f);
+        m_pSceneObject1->SetFlatColor(Vector4f(1.0f, 0.0, 0.0, 1.0f));
 
-        m_pScene->AddObject(m_pMesh);
+        m_pSceneObject2= m_pScene->CreateSceneObject("cube");
+        m_pScene->AddToRenderList(m_pSceneObject2);
+        m_pSceneObject2->SetPosition(10.0f, 0.0f, 0.0f);
+        m_pSceneObject2->SetFlatColor(Vector4f(1.0f, 1.0, 0.0, 1.0f));
+
+        m_pSceneObject3 = m_pScene->CreateSceneObject("cube");
+        m_pScene->AddToRenderList(m_pSceneObject3);
+        m_pSceneObject3->SetPosition(-10.0f, 0.0f, 0.0f);
+        m_pSceneObject3->SetFlatColor(Vector4f(0.0f, 1.0, 1.0, 1.0f));
+
+        m_pSceneObject4 = m_pScene->CreateSceneObject("cube");
+        m_pScene->AddToRenderList(m_pSceneObject4);
+        m_pSceneObject4->SetPosition(0.0f, 0.0f, -10.0f);
+        m_pSceneObject4->SetFlatColor(Vector4f(1.0f, 0.0, 1.0, 1.0f));
+
     }
 
-    BaseRenderingSubsystem* m_pRenderingSubsystem = NULL;
+    RenderingSystem* m_pRenderingSystem = NULL;
     Scene* m_pScene = NULL;
-    DemolitionModel* m_pMesh = NULL;
+    SceneObject* m_pSceneObject1 = NULL;
+    SceneObject* m_pSceneObject2 = NULL;
+    SceneObject* m_pSceneObject3 = NULL;
+    SceneObject* m_pSceneObject4 = NULL;
     float m_counter = 0;    
 };
 

@@ -32,9 +32,11 @@ PhongRenderer::~PhongRenderer()
 }
 
 
-void PhongRenderer::InitPhongRenderer()
+void PhongRenderer::InitPhongRenderer(int SubTech)
 {
-    if (!m_lightingTech.Init()) {
+    m_subTech = SubTech;
+
+    if (!m_lightingTech.Init(SubTech)) {
         printf("Error initializing the lighting technique\n");
         exit(1);
     }
@@ -203,7 +205,7 @@ void PhongRenderer::Render(BasicMesh* pMesh)
     RefreshLightingPosAndDirs(pMesh);
 
     if (m_dirLight.DiffuseIntensity > 0.0) {
-        m_lightingTech.UpdateDirLightDirection(m_dirLight);
+        m_lightingTech.SetDirectionalLight(m_dirLight);
     }
 
     m_lightingTech.UpdatePointLightsPos(m_numPointLights, m_pointLights);
@@ -226,6 +228,10 @@ void PhongRenderer::Render(BasicMesh* pMesh)
 
     Matrix4f World = pMesh->GetWorldTransform().GetMatrix();
     m_lightingTech.SetWorldMatrix(World);
+    
+    if (m_subTech == LightingTechnique::SUBTECH_WIREFRAME_ON_MESH) {
+        m_lightingTech.SetViewportMatrix(m_pCamera->GetViewportMatrix());
+    }
 
     pMesh->Render();
 }
@@ -482,5 +488,18 @@ void PhongRenderer::SetPBR(bool IsPBR)
 
     SwitchToSkinningTech();
     m_skinningTech.SetPBR(IsPBR);
+}
 
+
+void PhongRenderer::SetWireframeLineWidth(float Width)
+{
+    SwitchToLightingTech();
+    m_lightingTech.SetWireframeWidth(Width);
+}
+
+
+void PhongRenderer::SetWireframeColor(const Vector4f& Color)
+{
+    SwitchToLightingTech();
+    m_lightingTech.SetWireframeColor(Color);
 }

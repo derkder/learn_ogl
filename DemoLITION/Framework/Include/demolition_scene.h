@@ -21,36 +21,66 @@
 
 #include <list>
 
-#include "demolition_forward_lighting.h"
+#include "ogldev_basic_glfw_camera.h"
+#include "demolition_lights.h"
 #include "demolition_model.h"
+
+class SceneObject {
+public:
+    SceneObject() {}
+
+    void SetPosition(float x, float y, float z) { m_pos.x = x; m_pos.y = y; m_pos.z = z; }
+    void SetRotation(float x, float y, float z) { m_rot.x = x; m_rot.y = y; m_rot.z = z; }
+    void SetScale(float x, float y, float z) { m_scale.x = x; m_scale.y = y; m_scale.z = z; }
+
+    void SetPosition(const Vector3f& Pos) { m_pos = Pos; }
+    void SetRotation(const Vector3f& Rot) { m_rot = Rot; }
+    void SetScale(const Vector3f& Scale) { m_scale = Scale; }
+
+    Matrix4f GetMatrix() const;
+
+    void SetFlatColor(const Vector4f Col) { m_flatColor = Col; }
+    const Vector4f& GetFlatColor() const { return m_flatColor; }
+
+private:
+    Vector3f m_pos = Vector3f(0.0f, 0.0f, 0.0f);
+    Vector3f m_rot = Vector3f(0.0f, 0.0f, 0.0f);
+    Vector3f m_scale = Vector3f(1.0f, 1.0f, 1.0f);
+    Vector4f m_flatColor = Vector4f(-1.0f, -1.0f, -1.0f, -1.0f);
+};
 
 
 class Scene {
 public:
-    Scene() {}
+    Scene();
 
-    virtual ~Scene() {}
+    ~Scene() {}
 
-    void SetMainModel(DemolitionModel* pModel) { m_pMainModel = pModel; }
+    virtual SceneObject* CreateSceneObject(Model* pModel) = 0;
 
-    void AddObject(DemolitionModel* pObject);
+    virtual SceneObject* CreateSceneObject(const std::string& BasicShape) = 0;
+       
+    virtual void AddToRenderList(SceneObject* pSceneObject) = 0;
 
-    bool RemoveObject(DemolitionModel* pObject);
+    virtual bool RemoveFromRenderList(SceneObject* pSceneObject) = 0;
+
+    virtual void SetCamera(const Vector3f& Pos, const Vector3f& Target) = 0;
+
+    std::vector<PointLight>& GetPointLights() { return m_pointLights; }
+
+    std::vector<SpotLight>& GetSpotLights() { return m_spotLights; }
+
+    std::vector<DirectionalLight>& GetDirLights() { return m_dirLights; }
 
     void SetClearColor(const Vector4f& Color) { m_clearColor = Color; m_clearFrame = true; }
-    void DisableClear() { m_clearFrame = false;  }
-    bool IsClearFrame() const { return m_clearFrame; }
-    const Vector4f& GetClearColor() { return m_clearColor;  }
 
-    DemolitionModel* GetMainModel() const { return m_pMainModel; }
+    void DisableClear() { m_clearFrame = false;  }
+
+protected:
+    bool m_clearFrame = false;
+    Vector4f m_clearColor;
 
     std::vector<PointLight> m_pointLights;
     std::vector<SpotLight> m_spotLights;
     std::vector<DirectionalLight> m_dirLights;
-
-protected:
-    DemolitionModel* m_pMainModel = NULL;
-    std::list<DemolitionModel*> m_objects;
-    bool m_clearFrame = false;
-    Vector4f m_clearColor;
 };

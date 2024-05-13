@@ -36,6 +36,8 @@
 
 #define INVALID_MATERIAL 0xFFFFFFFF
 
+//#define USE_MESH_OPTIMIZER
+
 class BasicMesh : public MeshCommon
 {
 public:
@@ -60,12 +62,12 @@ public:
 protected:
 
     void Clear();
-
     virtual void ReserveSpace(uint NumVertices, uint NumIndices);
-
     virtual void InitSingleMesh(uint MeshIndex, const aiMesh* paiMesh);
-
+    virtual void InitSingleMeshOpt(uint MeshIndex, const aiMesh* paiMesh);
     virtual void PopulateBuffers();
+    virtual void PopulateBuffersNonDSA();
+    virtual void PopulateBuffersDSA();
 
     struct BasicMeshEntry {
         BasicMeshEntry()
@@ -88,16 +90,32 @@ protected:
 
     Matrix4f m_GlobalInverseTransform;
 
+    vector<uint> m_Indices;
+
+    enum BUFFER_TYPE {
+        INDEX_BUFFER = 0,
+        VERTEX_BUFFER = 1,
+        WVP_MAT_BUFFER = 2,  // required only for instancing
+        WORLD_MAT_BUFFER = 3,  // required only for instancing
+        NUM_BUFFERS = 4
+    };
+
+    GLuint m_VAO = 0;
+
+    GLuint m_Buffers[NUM_BUFFERS] = { 0 };
+
 private:
+    struct Vertex {
+        Vector3f Position;
+        Vector2f TexCoords;
+        Vector3f Normal;
+    };
 
     bool InitFromScene(const aiScene* pScene, const std::string& Filename);
-
     void CountVerticesAndIndices(const aiScene* pScene, uint& NumVertices, uint& NumIndices);
-
     void InitAllMeshes(const aiScene* pScene);
-
+    void OptimizeMesh(int MeshIndex, std::vector<uint>& Indices, std::vector<Vertex>& Vertices);
     bool InitMaterials(const aiScene* pScene, const std::string& Filename);
-
     void LoadTextures(const string& Dir, const aiMaterial* pMaterial, int index);
 
     void LoadDiffuseTexture(const string& Dir, const aiMaterial* pMaterial, int index);
@@ -110,26 +128,10 @@ private:
 
     void LoadColors(const aiMaterial* pMaterial, int index);
 
-    enum BUFFER_TYPE {
-        INDEX_BUFFER = 0,
-        POS_VB       = 1,
-        TEXCOORD_VB  = 2,
-        NORMAL_VB    = 3,
-        WVP_MAT_VB   = 4,  // required only for instancing
-        WORLD_MAT_VB = 5,  // required only for instancing
-        NUM_BUFFERS  = 6
-    };
-
-    GLuint m_VAO = 0;
-    GLuint m_Buffers[NUM_BUFFERS] = { 0 };
-
     std::vector<Material> m_Materials;
-
+    
     // Temporary space for vertex stuff before we load them into the GPU
-    vector<Vector3f> m_Positions;
-    vector<Vector3f> m_Normals;
-    vector<Vector2f> m_TexCoords;
-    vector<uint> m_Indices;
+    vector<Vertex> m_Vertices;
 
     Assimp::Importer m_Importer;
 };

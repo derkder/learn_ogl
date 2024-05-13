@@ -40,6 +40,12 @@ using namespace std;
 #define WINDOW_WIDTH  1000
 #define WINDOW_HEIGHT 1000
 
+// Workaround for tutorials prior to switching to GLFW
+int IsGLVersionHigher(int MajorVer, int MinorVer)
+{
+    return false;
+}
+
 struct CameraDirection
 {
     GLenum CubemapFace;
@@ -143,9 +149,9 @@ public:
         m_mesh2Orientation.m_pos = Vector3f(0.0f, 5.0f, 3.0f);
 
 #ifndef WIN32
-        if (!m_fontRenderer.InitFontRenderer()) {
-            return false;
-        }
+//        if (!m_fontRenderer.InitFontRenderer()) {
+ //           return false;
+  //      }
 #endif
         glEnable(GL_TEXTURE_CUBE_MAP);
 

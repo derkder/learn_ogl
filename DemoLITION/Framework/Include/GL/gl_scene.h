@@ -19,21 +19,14 @@
 
 #pragma once
 
-#include "demolition_scene.h"
+#include "Int/core_scene.h"
 
-class RenderingSubsystemGL;
+class RenderingSystemGL;
 
-class GLScene : public Scene
+class GLScene : public CoreScene
 {
 public:
-    GLScene(RenderingSubsystemGL* pRenderingSystem) { m_pRenderingSystem = NULL;  }
+    GLScene(RenderingSystemGL* pRenderingSystem) : CoreScene((CoreRenderingSystem*)pRenderingSystem) {}
 
-    ~GLScene() {}
-
-    void Render();
-
-    std::list<DemolitionModel*>& GetObjectList() { return m_objects; }
-
-private:
-    RenderingSubsystemGL* m_pRenderingSystem = NULL;
+    ~GLScene() {}    
 };

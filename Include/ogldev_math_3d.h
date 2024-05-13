@@ -101,6 +101,23 @@ struct Vector2f
             printf("\n");
         }
     }
+
+    float Length() const
+    {
+        float len = sqrtf(x * x + y * y);
+        return len;
+    }
+
+
+    void Normalize()
+    {
+        float len = Length();
+
+        assert(len != 0);
+
+        x /= len;
+        y /= len;
+    }
 };
 
 
@@ -305,6 +322,12 @@ struct Vector4f
         float ret = x * v.x + y * v.y + z * v.z + w * v.w;
         return ret;
     }
+
+    bool operator==(const Vector4f& r)
+    {
+        return ((x == r.x) && (y == r.y) && (z == r.z) && (w == r.w));
+    }
+
 };
 
 
@@ -428,6 +451,9 @@ struct OrthoProjInfo
     float t;        // top
     float n;        // z near
     float f;        // z far
+
+    float Width;
+    float Height;    
 
     void Print()
     {
@@ -566,10 +592,11 @@ public:
 
     void InitScaleTransform(float ScaleX, float ScaleY, float ScaleZ);
     void InitScaleTransform(float Scale);
+    void InitScaleTransform(const Vector3f& Scale);
 
     void InitRotateTransform(float RotateX, float RotateY, float RotateZ);
     void InitRotateTransformZYX(float RotateX, float RotateY, float RotateZ);
-
+    void InitRotateTransform(const Vector3f& Rotate);
     void InitRotateTransform(const Quaternion& quat);
 
     void InitTranslationTransform(float x, float y, float z);

@@ -63,8 +63,6 @@ private:
 
     virtual void InitSingleMesh(uint MeshIndex, const aiMesh* paiMesh);
 
-    virtual void PopulateBuffers();
-
     struct VertexBoneData
     {
         uint BoneIDs[MAX_NUM_BONES_PER_VERTEX] = { 0 };
@@ -77,7 +75,7 @@ private:
 
         void AddBoneData(uint BoneID, float Weight)
         {
-            for (int i = 0 ; i < index ; i++) {
+            for (int i = 0; i < index; i++) {
                 if (BoneIDs[i] == BoneID) {
                     //  printf("bone %d already found at index %d old weight %f new weight %f\n", BoneID, i, Weights[i], Weight);
                     return;
@@ -94,7 +92,7 @@ private:
 
             if (index == MAX_NUM_BONES_PER_VERTEX) {
                 return;
-                                assert(0);
+                assert(0);
             }
 
             BoneIDs[index] = BoneID;
@@ -104,8 +102,22 @@ private:
         }
     };
 
-    void LoadMeshBones(uint MeshIndex, const aiMesh* paiMesh);
-    void LoadSingleBone(uint MeshIndex, const aiBone* pBone);
+    struct SkinnedVertex {
+        Vector3f Position;
+        Vector2f TexCoords;
+        Vector3f Normal;
+        VertexBoneData Bones;
+    };
+
+    virtual void InitSingleMeshOpt(uint MeshIndex, const aiMesh* paiMesh);
+    void OptimizeMesh(int MeshIndex, std::vector<uint>& Indices, std::vector<SkinnedVertex>& Vertices);
+
+    virtual void PopulateBuffers();
+    void PopulateBuffersNonDSA();
+    void PopulateBuffersDSA();
+
+    void LoadMeshBones(uint MeshIndex, const aiMesh* paiMesh, vector<SkinnedVertex>& SkinnedVertices, int BaseVertex);
+    void LoadSingleBone(uint MeshIndex, const aiBone* pBone, vector<SkinnedVertex>& SkinnedVertices, int BaseVertex);
     int GetBoneId(const aiBone* pBone);
     void CalcInterpolatedScaling(aiVector3D& Out, float AnimationTime, const aiNodeAnim* pNodeAnim);
     void CalcInterpolatedRotation(aiQuaternion& Out, float AnimationTime, const aiNodeAnim* pNodeAnim);
@@ -129,10 +141,9 @@ private:
 
     void CalcLocalTransform(LocalTransform& Transform, float AnimationTimeTicks, const aiNodeAnim* pNodeAnim);
 
-    GLuint m_boneBuffer = 0;
+    vector<SkinnedVertex> m_SkinnedVertices;
 
-    // Temporary space for vertex stuff before we load them into the GPU
-    vector<VertexBoneData> m_Bones;
+    GLuint m_boneBuffer = 0;
 
     map<string,uint> m_BoneNameToIndexMap;
 

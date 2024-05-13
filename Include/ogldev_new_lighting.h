@@ -104,12 +104,17 @@ public:
     static const unsigned int MAX_POINT_LIGHTS = 2;
     static const unsigned int MAX_SPOT_LIGHTS = 2;
 
+    static const int SUBTECH_DEFAULT = 0;
+    static const int SUBTECH_PASSTHRU_GS = 1;
+    static const int SUBTECH_WIREFRAME_ON_MESH = 2;
+
     LightingTechnique();
 
-    virtual bool Init();
+    virtual bool Init(int SubTech = SUBTECH_DEFAULT);
 
     void SetWVP(const Matrix4f& WVP);
     void SetWorldMatrix(const Matrix4f& WVP);
+    void SetViewportMatrix(const Matrix4f& ViewportMatrix);
     void SetLightWVP(const Matrix4f& LightWVP); // required only for shadow mapping
     void SetTextureUnit(unsigned int TextureUnit);
     void SetShadowMapTextureUnit(unsigned int TextureUnit);
@@ -146,6 +151,8 @@ public:
     void SetPBRMaterial(const PBRMaterial& Material);
     void SetClipPlane(const Vector3f& Normal, const Vector3f& PointOnPlane);
     //    void SetPBRLight(const PBRLight& Light);
+    void SetWireframeWidth(float Width);
+    void SetWireframeColor(const Vector4f& Color);
 
 protected:
 
@@ -154,8 +161,11 @@ protected:
 private:
     void SetExpFogCommon(float FogEnd, float FogDensity);
 
+    int m_subTech = SUBTECH_DEFAULT;
+
     GLuint WVPLoc = INVALID_UNIFORM_LOCATION;
     GLuint WorldMatrixLoc = INVALID_UNIFORM_LOCATION;
+    GLuint ViewportMatrixLoc = INVALID_UNIFORM_LOCATION;
     GLuint LightWVPLoc = INVALID_UNIFORM_LOCATION; // required only for shadow mapping
     GLuint samplerLoc = INVALID_UNIFORM_LOCATION;
     GLuint shadowMapLoc = INVALID_UNIFORM_LOCATION;
@@ -185,7 +195,9 @@ private:
     GLuint LayeredFogTopLoc = INVALID_UNIFORM_LOCATION;
     GLuint FogTimeLoc = INVALID_UNIFORM_LOCATION;
     GLuint IsPBRLoc = INVALID_UNIFORM_LOCATION;
-    GLuint ClipPlaneLoc = -1;
+    GLuint ClipPlaneLoc = INVALID_UNIFORM_LOCATION;
+    GLuint WireframeWidthLoc = INVALID_UNIFORM_LOCATION;
+    GLuint WireframeColorLoc = INVALID_UNIFORM_LOCATION;
 
     struct {
         GLuint AmbientColor;

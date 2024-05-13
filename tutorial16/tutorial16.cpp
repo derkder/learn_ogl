@@ -47,6 +47,11 @@ struct Vertex
     }
 };
 
+// Workaround for tutorials prior to switching to GLFW
+int IsGLVersionHigher(int MajorVer, int MinorVer)
+{
+    return false;
+}
 
 GLuint VBO;
 GLuint IBO;
@@ -237,8 +242,15 @@ int main(int argc, char** argv)
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
     glutInitWindowPosition(100, 100);
     glutCreateWindow("Tutorial 16");
-    glutGameModeString("1920x12@32");
-    glutEnterGameMode();
+    char game_mode_string[64];
+    // Game mode string example: <Width>x<Height>@<BPP>
+    snprintf(game_mode_string, sizeof(game_mode_string), "%dx%d@32", WINDOW_WIDTH, WINDOW_HEIGHT);
+    glutGameModeString(game_mode_string);
+    if (glutGameModeGet(GLUT_GAME_MODE_POSSIBLE)) {
+        glutEnterGameMode();
+    } else {
+        fprintf(stderr, "Error: Requested game mode, '%s', not available.\n", game_mode_string);
+    }
 
     InitializeGlutCallbacks();
 

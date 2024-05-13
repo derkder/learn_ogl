@@ -19,8 +19,13 @@
 #include "ogldev_engine_common.h"
 #include "ogldev_skinned_mesh.h"
 
+#include "3rdparty/meshoptimizer/src/meshoptimizer.h"
+
 using namespace std;
 
+#define POSITION_LOCATION    0
+#define TEX_COORD_LOCATION   1
+#define NORMAL_LOCATION      2
 #define BONE_ID_LOCATION     3
 #define BONE_WEIGHT_LOCATION 4
 
@@ -34,19 +39,143 @@ SkinnedMesh::~SkinnedMesh()
 void SkinnedMesh::ReserveSpace(unsigned int NumVertices, unsigned int NumIndices)
 {
     BasicMesh::ReserveSpace(NumVertices, NumIndices);
-    m_Bones.resize(NumVertices);
     InitializeRequiredNodeMap(m_pScene->mRootNode);
 }
 
 
 void SkinnedMesh::InitSingleMesh(uint MeshIndex, const aiMesh* paiMesh)
 {
-    BasicMesh::InitSingleMesh(MeshIndex, paiMesh);
-    LoadMeshBones(MeshIndex, paiMesh);
+    const aiVector3D Zero3D(0.0f, 0.0f, 0.0f);
+
+    // printf("Mesh %d\n", MeshIndex);
+    // Populate the vertex attribute vectors
+    SkinnedVertex v;
+
+    for (unsigned int i = 0; i < paiMesh->mNumVertices; i++) {
+        const aiVector3D& pPos = paiMesh->mVertices[i];
+        // printf("%d: ", i); Vector3f v(pPos.x, pPos.y, pPos.z); v.Print();
+        v.Position = Vector3f(pPos.x, pPos.y, pPos.z);
+
+        if (paiMesh->mNormals) {
+            const aiVector3D& pNormal = paiMesh->mNormals[i];
+            v.Normal = Vector3f(pNormal.x, pNormal.y, pNormal.z);
+        }
+        else {
+            aiVector3D Normal(0.0f, 1.0f, 0.0f);
+            v.Normal = Vector3f(Normal.x, Normal.y, Normal.z);
+        }
+
+        const aiVector3D& pTexCoord = paiMesh->HasTextureCoords(0) ? paiMesh->mTextureCoords[0][i] : Zero3D;
+        v.TexCoords = Vector2f(pTexCoord.x, pTexCoord.y);
+
+        m_SkinnedVertices.push_back(v);
+    }
+
+    // Populate the index buffer
+    for (unsigned int i = 0; i < paiMesh->mNumFaces; i++) {
+        const aiFace& Face = paiMesh->mFaces[i];
+        m_Indices.push_back(Face.mIndices[0]);
+        m_Indices.push_back(Face.mIndices[1]);
+        m_Indices.push_back(Face.mIndices[2]);
+    }
+
+    LoadMeshBones(MeshIndex, paiMesh, m_SkinnedVertices, m_Meshes[MeshIndex].BaseVertex);
 }
 
 
-void SkinnedMesh::LoadMeshBones(uint MeshIndex, const aiMesh* pMesh)
+void SkinnedMesh::InitSingleMeshOpt(uint MeshIndex, const aiMesh* paiMesh)
+{
+    const aiVector3D Zero3D(0.0f, 0.0f, 0.0f);
+
+    // printf("Mesh %d\n", MeshIndex);
+    // Populate the vertex attribute vectors
+    SkinnedVertex v;
+
+    std::vector<SkinnedVertex> SkinnedVertices(paiMesh->mNumVertices);
+
+    for (unsigned int i = 0; i < paiMesh->mNumVertices; i++) {
+        const aiVector3D& pPos = paiMesh->mVertices[i];
+        // printf("%d: ", i); Vector3f v(pPos.x, pPos.y, pPos.z); v.Print();
+        v.Position = Vector3f(pPos.x, pPos.y, pPos.z);
+
+        if (paiMesh->mNormals) {
+            const aiVector3D& pNormal = paiMesh->mNormals[i];
+            v.Normal = Vector3f(pNormal.x, pNormal.y, pNormal.z);
+        }
+        else {
+            aiVector3D Normal(0.0f, 1.0f, 0.0f);
+            v.Normal = Vector3f(Normal.x, Normal.y, Normal.z);
+        }
+
+        const aiVector3D& pTexCoord = paiMesh->HasTextureCoords(0) ? paiMesh->mTextureCoords[0][i] : Zero3D;
+        v.TexCoords = Vector2f(pTexCoord.x, pTexCoord.y);
+
+        SkinnedVertices[i] = v;
+    }
+
+    m_Meshes[MeshIndex].BaseVertex = (uint)m_SkinnedVertices.size();
+    m_Meshes[MeshIndex].BaseIndex = (uint)m_Indices.size();    
+
+    int NumIndices = paiMesh->mNumFaces * 3;
+
+    std::vector<uint> Indices;
+    Indices.resize(NumIndices);
+
+    // Populate the index buffer
+    for (unsigned int i = 0; i < paiMesh->mNumFaces; i++) {
+        const aiFace& Face = paiMesh->mFaces[i];
+        Indices[i * 3 + 0] = Face.mIndices[0];
+        Indices[i * 3 + 1] = Face.mIndices[1];
+        Indices[i * 3 + 2] = Face.mIndices[2];
+    }
+
+    LoadMeshBones(MeshIndex, paiMesh, SkinnedVertices, 0);
+
+    OptimizeMesh(MeshIndex, Indices, SkinnedVertices);
+}
+
+
+void SkinnedMesh::OptimizeMesh(int MeshIndex, std::vector<uint>& Indices, std::vector<SkinnedVertex>& SkinnedVertices)
+{
+    size_t NumIndices = Indices.size();
+
+    std::vector<unsigned int> remap(NumIndices);
+    size_t OptVertexCount = meshopt_generateVertexRemap(remap.data(), Indices.data(), Indices.size(), SkinnedVertices.data(), Indices.size(), sizeof(SkinnedVertex));
+
+    std::vector<uint> OptIndices;
+    std::vector<SkinnedVertex> OptVertices;
+    OptIndices.resize(NumIndices);
+    OptVertices.resize(OptVertexCount);
+
+    meshopt_remapIndexBuffer(OptIndices.data(), Indices.data(), Indices.size(), remap.data());
+
+    meshopt_remapVertexBuffer(OptVertices.data(), SkinnedVertices.data(), SkinnedVertices.size(), sizeof(SkinnedVertex), remap.data());
+
+    meshopt_optimizeVertexCache(OptIndices.data(), OptIndices.data(), Indices.size(), OptVertexCount);
+
+    meshopt_optimizeOverdraw(OptIndices.data(), OptIndices.data(), Indices.size(), &(OptVertices[0].Position.x), OptVertexCount, sizeof(SkinnedVertex), 1.05f);
+
+    meshopt_optimizeVertexFetch(OptVertices.data(), OptIndices.data(), NumIndices, OptVertices.data(), OptVertexCount, sizeof(SkinnedVertex));
+
+    float Threshold = 1.0f;
+    size_t TargetIndexCount = (size_t)(NumIndices * Threshold);
+    float TargetError = 1.0f;
+    std::vector<unsigned int> IndicesLod(OptIndices.size());
+    size_t OptIndexCount = meshopt_simplify(&IndicesLod[0], OptIndices.data(), OptIndices.size(),
+        &OptVertices[0].Position.x, OptVertexCount, sizeof(SkinnedVertex), TargetIndexCount, TargetError);
+
+    OptIndices = IndicesLod;
+    OptIndices.resize(OptIndexCount);
+
+    m_Indices.insert(m_Indices.end(), OptIndices.begin(), OptIndices.end());
+
+    m_SkinnedVertices.insert(m_SkinnedVertices.end(), OptVertices.begin(), OptVertices.end());
+
+    m_Meshes[MeshIndex].NumIndices = (uint)OptIndexCount;
+}
+
+
+void SkinnedMesh::LoadMeshBones(uint MeshIndex, const aiMesh* pMesh, vector<SkinnedVertex>& SkinnedVertices, int BaseVertex)
 {
     if (pMesh->mNumBones > MAX_BONES) {
         printf("The number of bones in the model (%d) is larger than the maximum supported (%d)\n", pMesh->mNumBones, MAX_BONES);
@@ -57,12 +186,12 @@ void SkinnedMesh::LoadMeshBones(uint MeshIndex, const aiMesh* pMesh)
     // printf("Loading mesh bones %d\n", MeshIndex);
     for (uint i = 0 ; i < pMesh->mNumBones ; i++) {
         // printf("Bone %d %s\n", i, pMesh->mBones[i]->mName.C_Str());
-        LoadSingleBone(MeshIndex, pMesh->mBones[i]);
+        LoadSingleBone(MeshIndex, pMesh->mBones[i], SkinnedVertices, BaseVertex);
     }
 }
 
 
-void SkinnedMesh::LoadSingleBone(uint MeshIndex, const aiBone* pBone)
+void SkinnedMesh::LoadSingleBone(uint MeshIndex, const aiBone* pBone, vector<SkinnedVertex>& SkinnedVertices, int BaseVertex)
 {
     int BoneId = GetBoneId(pBone);
 
@@ -74,9 +203,9 @@ void SkinnedMesh::LoadSingleBone(uint MeshIndex, const aiBone* pBone)
 
     for (uint i = 0 ; i < pBone->mNumWeights ; i++) {
         const aiVertexWeight& vw = pBone->mWeights[i];
-        uint GlobalVertexID = m_Meshes[MeshIndex].BaseVertex + pBone->mWeights[i].mVertexId;
+        uint GlobalVertexID = BaseVertex + pBone->mWeights[i].mVertexId;
         // printf("%d: %d %f\n",i, pBone->mWeights[i].mVertexId, vw.mWeight);
-        m_Bones[GlobalVertexID].AddBoneData(BoneId, vw.mWeight);
+        SkinnedVertices[GlobalVertexID].Bones.AddBoneData(BoneId, vw.mWeight);
     }
 
     MarkRequiredNodesForBone(pBone);
@@ -141,19 +270,82 @@ int SkinnedMesh::GetBoneId(const aiBone* pBone)
 }
 
 
-
 void SkinnedMesh::PopulateBuffers()
 {
-    BasicMesh::PopulateBuffers();
+    if (IsGLVersionHigher(4, 5)) {
+        PopulateBuffersDSA();
+    }
+    else {
+        PopulateBuffersNonDSA();
+    }
+}
 
-    glGenBuffers(1, &m_boneBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, m_boneBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(m_Bones[0]) * m_Bones.size(), &m_Bones[0], GL_STATIC_DRAW);
+
+void SkinnedMesh::PopulateBuffersNonDSA()
+{
+    glBindBuffer(GL_ARRAY_BUFFER, m_Buffers[VERTEX_BUFFER]);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_Buffers[INDEX_BUFFER]);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(m_SkinnedVertices[0]) * m_SkinnedVertices.size(), &m_SkinnedVertices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(m_Indices[0]) * m_Indices.size(), &m_Indices[0], GL_STATIC_DRAW);
+
+    size_t NumFloats = 0;
+
+    glEnableVertexAttribArray(POSITION_LOCATION);
+    glVertexAttribPointer(POSITION_LOCATION, 3, GL_FLOAT, GL_FALSE, sizeof(SkinnedVertex), (const void*)(NumFloats * sizeof(float)));
+    NumFloats += 3;
+
+    glEnableVertexAttribArray(TEX_COORD_LOCATION);
+    glVertexAttribPointer(TEX_COORD_LOCATION, 2, GL_FLOAT, GL_FALSE, sizeof(SkinnedVertex), (const void*)(NumFloats * sizeof(float)));
+    NumFloats += 2;
+
+    glEnableVertexAttribArray(NORMAL_LOCATION);
+    glVertexAttribPointer(NORMAL_LOCATION, 3, GL_FLOAT, GL_FALSE, sizeof(SkinnedVertex), (const void*)(NumFloats * sizeof(float)));
+    NumFloats += 3;
+
     glEnableVertexAttribArray(BONE_ID_LOCATION);
-    glVertexAttribIPointer(BONE_ID_LOCATION, MAX_NUM_BONES_PER_VERTEX, GL_INT, sizeof(VertexBoneData), (const GLvoid*)0);
+    glVertexAttribIPointer(BONE_ID_LOCATION, MAX_NUM_BONES_PER_VERTEX, GL_INT, sizeof(SkinnedVertex), (const void*)(NumFloats * sizeof(float)));
+    NumFloats += MAX_NUM_BONES_PER_VERTEX;
+
     glEnableVertexAttribArray(BONE_WEIGHT_LOCATION);
-    glVertexAttribPointer(BONE_WEIGHT_LOCATION, MAX_NUM_BONES_PER_VERTEX, GL_FLOAT, GL_FALSE, sizeof(VertexBoneData),
-                          (const GLvoid*)(MAX_NUM_BONES_PER_VERTEX * sizeof(int32_t)));
+    glVertexAttribPointer(BONE_WEIGHT_LOCATION, MAX_NUM_BONES_PER_VERTEX, GL_FLOAT, GL_FALSE, sizeof(SkinnedVertex), (const void*)(NumFloats * sizeof(float)));
+}
+
+
+void SkinnedMesh::PopulateBuffersDSA()
+{
+    glNamedBufferStorage(m_Buffers[VERTEX_BUFFER], sizeof(m_SkinnedVertices[0]) * m_SkinnedVertices.size(), m_SkinnedVertices.data(), 0);
+    glNamedBufferStorage(m_Buffers[INDEX_BUFFER], sizeof(m_Indices[0]) * m_Indices.size(), m_Indices.data(), GL_DYNAMIC_STORAGE_BIT);
+
+    glVertexArrayVertexBuffer(m_VAO, 0, m_Buffers[VERTEX_BUFFER], 0, sizeof(SkinnedVertex));
+    glVertexArrayElementBuffer(m_VAO, m_Buffers[INDEX_BUFFER]);
+
+    size_t NumFloats = 0;
+
+    glEnableVertexArrayAttrib(m_VAO, POSITION_LOCATION);
+    glVertexArrayAttribFormat(m_VAO, POSITION_LOCATION, 3, GL_FLOAT, GL_FALSE, (GLuint)(NumFloats * sizeof(float)));
+    glVertexArrayAttribBinding(m_VAO, POSITION_LOCATION, 0);
+    NumFloats += 3;
+
+    glEnableVertexArrayAttrib(m_VAO, TEX_COORD_LOCATION);
+    glVertexArrayAttribFormat(m_VAO, TEX_COORD_LOCATION, 2, GL_FLOAT, GL_FALSE, (GLuint)(NumFloats * sizeof(float)));
+    glVertexArrayAttribBinding(m_VAO, TEX_COORD_LOCATION, 0);
+    NumFloats += 2;
+
+    glEnableVertexArrayAttrib(m_VAO, NORMAL_LOCATION);
+    glVertexArrayAttribFormat(m_VAO, NORMAL_LOCATION, 3, GL_FLOAT, GL_FALSE, (GLuint)(NumFloats * sizeof(float)));
+    glVertexArrayAttribBinding(m_VAO, NORMAL_LOCATION, 0);
+    NumFloats += 3;
+
+    glEnableVertexArrayAttrib(m_VAO, BONE_ID_LOCATION);
+    glVertexArrayAttribIFormat(m_VAO, BONE_ID_LOCATION, MAX_NUM_BONES_PER_VERTEX, GL_INT, (GLuint)(NumFloats * sizeof(float)));
+    glVertexArrayAttribBinding(m_VAO, BONE_ID_LOCATION, 0);
+
+    NumFloats += MAX_NUM_BONES_PER_VERTEX;
+
+    glEnableVertexArrayAttrib(m_VAO, BONE_WEIGHT_LOCATION);
+    glVertexArrayAttribFormat(m_VAO, BONE_WEIGHT_LOCATION, MAX_NUM_BONES_PER_VERTEX, GL_FLOAT, GL_FALSE, (GLuint)(NumFloats * sizeof(float)));
+    glVertexArrayAttribBinding(m_VAO, BONE_WEIGHT_LOCATION, 0);
 }
 
 

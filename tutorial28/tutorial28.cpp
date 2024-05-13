@@ -35,7 +35,14 @@
 #include "particle_system.h"
 
 #define WINDOW_WIDTH  1920
-#define WINDOW_HEIGHT 1200
+#define WINDOW_HEIGHT 1080
+
+// Workaround for tutorials prior to switching to GLFW
+int IsGLVersionHigher(int MajorVer, int MinorVer)
+{
+    return false;
+}
+
 
 
 class Tutorial28 : public ICallbacks, public OgldevApp

@@ -33,11 +33,13 @@ public:
     // Should be called once to load the texture
     bool Load();
 
-    void Load(unsigned int BufferSize, void* pData);
+    void Load(unsigned int BufferSize, void* pImageData);
 
     void Load(const std::string& Filename);
 
-    void LoadRaw(int Width, int Height, int BPP, unsigned char* pData);
+    void LoadRaw(int Width, int Height, int BPP, const unsigned char* pImageData);
+
+    void LoadF32(int Width, int Height, const float* pImageData);
 
     // Must be called at least once for the specific texture unit
     void Bind(GLenum TextureUnit);
@@ -51,7 +53,12 @@ public:
     GLuint GetTexture() const { return m_textureObj; }
 
 private:
-    void LoadInternal(void* image_data);
+    void LoadInternal(const void* pImageData);
+    void LoadInternalNonDSA(const void* pImageData);
+    void LoadInternalDSA(const void* pImageData);    
+
+    void BindInternalNonDSA(GLenum TextureUnit);
+    void BindInternalDSA(GLenum TextureUnit);
 
     std::string m_fileName;
     GLenum m_textureTarget;

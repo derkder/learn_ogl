@@ -34,6 +34,13 @@
 #define WINDOW_WIDTH  1680
 #define WINDOW_HEIGHT 1050
 
+// Workaround for tutorials prior to switching to GLFW
+int IsGLVersionHigher(int MajorVer, int MinorVer)
+{
+    return false;
+}
+
+
 class Tutorial31 : public ICallbacks, public OgldevApp
 {
 public:
@@ -102,7 +109,7 @@ public:
         Pipeline p;
         p.WorldPos(-3.0f, 0.0f, 0.0f);
         p.Scale(2.0f, 2.0f, 2.0f);               
-        p.Rotate(-90.0f, 15.0f, 0.0f);
+        p.Rotate(90.0f, 15.0f, 0.0f);
         p.SetCamera(m_pGameCamera->GetPos(), m_pGameCamera->GetTarget(), m_pGameCamera->GetUp());
         p.SetPerspectiveProj(m_persProjInfo);
         m_lightingEffect.SetEyeWorldPos(m_pGameCamera->GetPos());        
@@ -113,7 +120,7 @@ public:
         m_pMesh->Render(NULL);
         
         p.WorldPos(3.0f, 0.0f, 0.0f);
-        p.Rotate(-90.0f, -15.0f, 0.0f);
+        p.Rotate(90.0f, 15.0f, 0.0f);
         m_lightingEffect.SetVP(p.GetVPTrans());
         m_lightingEffect.SetWorldMatrix(p.GetWorldTrans());                
         m_lightingEffect.SetTessellationLevel(1.0f);
@@ -140,6 +147,10 @@ public:
                     m_tessellationLevel -= 1.0f;                    
                 }
                 break;
+
+            case OGLDEV_KEY_p:
+                m_pauseMouse = !m_pauseMouse;
+                break;
                 
             case OGLDEV_KEY_z:
                 m_isWireframe = !m_isWireframe;
@@ -159,7 +170,9 @@ public:
 
 	virtual void PassiveMouseCB(int x, int y)
 	{
-		m_pGameCamera->OnMouse(x, y);
+        if (!m_pauseMouse) {
+            m_pGameCamera->OnMouse(x, y);
+        }
 	}
 
     
@@ -172,6 +185,7 @@ private:
     PersProjInfo m_persProjInfo;
     float m_tessellationLevel;
     bool m_isWireframe;
+    bool m_pauseMouse = false;
 };
 
 

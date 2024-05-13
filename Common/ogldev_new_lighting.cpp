@@ -45,14 +45,45 @@ LightingTechnique::LightingTechnique()
 {
 }
 
-bool LightingTechnique::Init()
+bool LightingTechnique::Init(int SubTech)
 {
     if (!Technique::Init()) {
         return false;
     }
 
-    if (!AddShader(GL_VERTEX_SHADER, "../Common/Shaders/lighting_new.vs")) {
-        return false;
+    m_subTech = SubTech;
+
+    switch (SubTech) {
+    case SUBTECH_DEFAULT:
+        if (!AddShader(GL_VERTEX_SHADER, "../Common/Shaders/lighting_new.vs")) {
+            return false;
+        }
+
+        break;
+
+    case SUBTECH_PASSTHRU_GS:
+        if (!AddShader(GL_VERTEX_SHADER, "../Common/Shaders/lighting_new_to_gs.vs")) {
+            return false;
+        }
+
+        if (!AddShader(GL_GEOMETRY_SHADER, "../Common/Shaders/passthru.gs")) {
+            return false;
+        }
+        break;
+
+    case SUBTECH_WIREFRAME_ON_MESH:
+        if (!AddShader(GL_VERTEX_SHADER, "../Common/Shaders/lighting_new_to_gs.vs")) {
+            return false;
+        }
+
+        if (!AddShader(GL_GEOMETRY_SHADER, "../Common/Shaders/wireframe_on_mesh.gs")) {
+            return false;
+        }
+        break;
+
+    default:
+        printf("Invalid lighting subtechnique %d\n", SubTech);
+        exit(0);
     }
 
     if (!AddShader(GL_FRAGMENT_SHADER, "../Common/Shaders/lighting_new.fs")) {
@@ -70,6 +101,9 @@ bool LightingTechnique::InitCommon()
 {
     WVPLoc = GetUniformLocation("gWVP");
     WorldMatrixLoc = GetUniformLocation("gWorld");
+    if (m_subTech == SUBTECH_WIREFRAME_ON_MESH) {
+        ViewportMatrixLoc = GetUniformLocation("gViewportMatrix");
+    }
     LightWVPLoc = GetUniformLocation("gLightWVP"); // required only for shadow mapping
     samplerLoc = GetUniformLocation("gSampler");
     shadowMapLoc = GetUniformLocation("gShadowMap");
@@ -110,6 +144,8 @@ bool LightingTechnique::InitCommon()
     PBRMaterialLoc.IsMetal = GetUniformLocation("gPBRmaterial.IsMetal");
     PBRMaterialLoc.Color = GetUniformLocation("gPBRmaterial.Color");
     ClipPlaneLoc = GetUniformLocation("gClipPlane");
+    WireframeWidthLoc = GetUniformLocation("gWireframeWidth");
+    WireframeColorLoc = GetUniformLocation("gWireframeColor");
 
     if (WVPLoc == INVALID_UNIFORM_LOCATION ||
         WorldMatrixLoc == INVALID_UNIFORM_LOCATION ||
@@ -159,6 +195,15 @@ bool LightingTechnique::InitCommon()
 #endif
     }
 
+    if (m_subTech == SUBTECH_WIREFRAME_ON_MESH) {
+        if (ViewportMatrixLoc == INVALID_UNIFORM_LOCATION ||
+            WireframeWidthLoc == INVALID_UNIFORM_LOCATION ||
+            WireframeColorLoc == INVALID_UNIFORM_LOCATION) {
+#ifdef FAIL_ON_MISSING_LOC
+            return false;
+#endif
+        }
+    }
 
     for (unsigned int i = 0 ; i < ARRAY_SIZE_IN_ELEMENTS(PointLightsLocation) ; i++) {
         char Name[128];
@@ -259,6 +304,12 @@ void LightingTechnique::SetWVP(const Matrix4f& WVP)
 void LightingTechnique::SetWorldMatrix(const Matrix4f& World)
 {
     glUniformMatrix4fv(WorldMatrixLoc, 1, GL_TRUE, (const GLfloat*)World.m);
+}
+
+
+void LightingTechnique::SetViewportMatrix(const Matrix4f& ViewportMatrix)
+{
+    glUniformMatrix4fv(ViewportMatrixLoc, 1, GL_TRUE, (const GLfloat*)ViewportMatrix.m);
 }
 
 
@@ -589,3 +640,24 @@ void LightingTechnique::SetClipPlane(const Vector3f& Normal, const Vector3f& Poi
     glUniform4f(ClipPlaneLoc, Normal.x, Normal.y, Normal.z, d);
 }
 
+
+void LightingTechnique::SetWireframeWidth(float Width)
+{
+    if (WireframeWidthLoc == INVALID_UNIFORM_LOCATION) {
+        printf("Invalid call to SetWireframeWidth\n");
+        exit(0);
+    }
+
+    glUniform1f(WireframeWidthLoc, Width);
+}
+
+
+void LightingTechnique::SetWireframeColor(const Vector4f& Color)
+{
+    if (WireframeColorLoc == INVALID_UNIFORM_LOCATION) {
+        printf("Invalid call to SetWireframeColor\n");
+        exit(0);
+    }
+
+    glUniform4f(WireframeColorLoc, Color.x, Color.y, Color.z, Color.w);
+}

@@ -38,6 +38,12 @@
 #define NUM_COLS 20
 #define NUM_INSTANCES NUM_ROWS * NUM_COLS
 
+// Workaround for tutorials prior to switching to GLFW
+int IsGLVersionHigher(int MajorVer, int MinorVer)
+{
+    return false;
+}
+
 
 class Tutorial33 : public ICallbacks, public OgldevApp
 {
@@ -102,9 +108,9 @@ public:
         }
 
 #ifndef WIN32
-        if (!m_fontRenderer.InitFontRenderer()) {
-            return false;
-        }
+//        if (!m_fontRenderer.InitFontRenderer()) {
+ //           return false;
+  //      }
 #endif
 
         CalcPositions();

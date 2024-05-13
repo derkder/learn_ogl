@@ -16,6 +16,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+//-----------
+// DEPRECATED
+//-----------
+
 #ifndef OGLDEV_APP_H
 #define OGLDEV_APP_H
 
@@ -37,7 +41,7 @@ protected:
 
 protected:
 #ifndef _WIN32
-	FontRenderer m_fontRenderer;
+//	FontRenderer m_fontRenderer;
 #endif
 private:
 	long long m_frameTime;

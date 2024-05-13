@@ -43,6 +43,12 @@
 #define WINDOW_WIDTH  1280
 #define WINDOW_HEIGHT 1024
 
+// Workaround for tutorials prior to switching to GLFW
+int IsGLVersionHigher(int MajorVer, int MinorVer)
+{
+    return false;
+}
+
 class Tutorial45 : public ICallbacks, public OgldevApp
 {
 public:
@@ -140,9 +146,9 @@ public:
         }
 
 #ifndef WIN32
-        if (!m_fontRenderer.InitFontRenderer()) {
-            return false;
-        }
+        //if (!m_fontRenderer.InitFontRenderer()) {
+         //   return false;
+       // }
 #endif
         return true;
     }

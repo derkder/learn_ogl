@@ -32,6 +32,12 @@ public:
 
     BasicCamera(const PersProjInfo& persProjInfo, const Vector3f& Pos, const Vector3f& Target, const Vector3f& Up);
 
+    BasicCamera(const OrthoProjInfo& orthoProjInfo, const Vector3f& Pos, const Vector3f& Target, const Vector3f& Up);
+
+    void InitCamera(const PersProjInfo& persProjInfo, const Vector3f& Pos, const Vector3f& Target, const Vector3f& Up);
+
+    void InitCamera(const OrthoProjInfo& orthoProjInfo, const Vector3f& Pos, const Vector3f& Target, const Vector3f& Up);
+
     void SetPosition(float x, float y, float z);
 
     void SetPosition(const Vector3f& pos);
@@ -56,15 +62,17 @@ public:
 
     const Vector3f& GetUp() const { return m_up; }
 
-    const Matrix4f& GetProjectionMat() const { return ProjectionMat; }
+    const Matrix4f& GetProjectionMat() const { return m_projection; }
+
+    const PersProjInfo& GetPersProjInfo() const { return m_persProjInfo; }
 
     Matrix4f GetViewProjMatrix() const;
 
     Matrix4f GetViewMatrix() const { return GetMatrix(); }
 
-    void Print() const { printf("Pos "); m_pos.Print(); printf("Target "); m_target.Print(); }
+    Matrix4f GetViewportMatrix() const;
 
-    PersProjInfo m_persProjInfo;
+    void Print() const { printf("Pos "); m_pos.Print(); printf("Target "); m_target.Print(); }
 
     void SetSpeed(float Speed);
 
@@ -74,7 +82,7 @@ public:
 
 private:
 
-    void Init();
+    void InitInternal();
     void Update();
 
     std::string m_name;
@@ -83,7 +91,7 @@ private:
     Vector3f m_target;
     Vector3f m_up;
 
-    float m_speed = 2.0f;
+    float m_speed = 5.0f;
     int m_windowWidth;
     int m_windowHeight;
 
@@ -96,8 +104,9 @@ private:
     bool m_OnRightEdge;
 
     Vector2i m_mousePos;
-
-    Matrix4f ProjectionMat;
+    
+    PersProjInfo m_persProjInfo;
+    Matrix4f m_projection;
 };
 
 #endif
